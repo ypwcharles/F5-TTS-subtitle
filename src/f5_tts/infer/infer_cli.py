@@ -6,6 +6,9 @@ from datetime import datetime
 from importlib.resources import files
 from pathlib import Path
 
+import faulthandler
+faulthandler.enable()
+
 import numpy as np
 import soundfile as sf
 import tomli
