@@ -499,13 +499,21 @@ def infer_batch_process(
 
             generated = generated.to(torch.float32)  # generated mel spectrogram
             generated = generated[:, ref_audio_len:, :]
-            generated = generated.permute(0, 2, 1)
-            if mel_spec_type == "vocos":
-                generated_wave = vocoder.decode(generated)
-            elif mel_spec_type == "bigvgan":
-                generated_wave = vocoder(generated)
-            if rms < target_rms:
-                generated_wave = generated_wave * rms / target_rms
+
+            # Check for NaN or Inf values in the generated spectrogram
+            if torch.isnan(generated).any() or torch.isinf(generated).any():
+                print("!!!!!! WARNING: NaN or Inf found in generated spectrogram. Skipping vocoder call and generating silence instead. !!!!!!")
+                # Estimate duration from spectrogram length
+                estimated_duration_samples = generated.shape[2] * hop_length
+                generated_wave = torch.zeros(1, estimated_duration_samples, device=generated.device)
+            else:
+                generated = generated.permute(0, 2, 1)
+                if mel_spec_type == "vocos":
+                    generated_wave = vocoder.decode(generated)
+                elif mel_spec_type == "bigvgan":
+                    generated_wave = vocoder(generated)
+                if rms < target_rms:
+                    generated_wave = generated_wave * rms / target_rms
 
             # wav -> numpy
             generated_wave = generated_wave.squeeze().cpu().numpy()
